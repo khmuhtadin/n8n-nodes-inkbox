@@ -30,6 +30,10 @@ This implementation validates the subscription bearer token, not Inkbox HMAC sig
 
 Import [examples/list-mail.json](examples/list-mail.json) using **Workflow menu > Import from File**, replace the sample mailbox address, and select an Inkbox credential. To use the node with an AI Agent, add an Inkbox tool for each permitted operation and let the agent fill individual parameters using n8n expressions. Do not give an agent unrestricted sending access without reviewing the implications.
 
+## Workflow template
+
+[`examples/template-inkbox-project-decisions.json`](examples/template-inkbox-project-decisions.json): **Resolve blocked project decisions with Inkbox, Google Sheets and Slack**. Import it in n8n (Workflows > Import from file). Setup steps are in the yellow sticky note.
+
 ## Development
 
 Node.js 20 or newer. `npm ci --ignore-scripts`, `npm run build`, `npm run lint`, `npm test`. Tests mock the API; no live account is required.

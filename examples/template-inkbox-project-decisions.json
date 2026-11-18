@@ -1,0 +1,563 @@
+{
+  "name": "Resolve blocked project decisions with Inkbox, Google Sheets and Slack",
+  "nodes": [
+    {
+      "id": "n001-0000-4000-8000-000000000000",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "content": "## Resolve blocked project decisions with Inkbox, Google Sheets and Slack\n\nGive your project agent its own inbox. Every morning it emails each open decision to the person who owns it from an Inkbox mailbox. The owner replies APPROVE, REJECT or DEFER, and the workflow updates the sheet, confirms by email and tells the team in Slack.\n\n### How it works\n1. A daily schedule reads open decisions from Google Sheets and emails each owner from your Inkbox mailbox.\n2. The Inkbox Trigger fires when a reply arrives.\n3. The decision ID is read from the subject and the first word of the reply becomes the answer.\n4. The reply is accepted only if it comes from the decision owner and the answer is valid.\n5. Valid answers update the sheet, get a confirmation email and a Slack note. Anything else gets a short how-to-reply email.\n\n### Setup steps\n- [ ] Install the community node **n8n-nodes-inkbox** (Settings > Community nodes)\n- [ ] Create an Inkbox agent identity and mailbox at inkbox.ai, add the API key\n- [ ] In the trigger, set the identity ID (and signing key if you have one)\n- [ ] Create a sheet **Decisions** with columns: id, question, owner_email, status, answer, decided_at\n- [ ] Set your mailbox address in both Send nodes, connect Google Sheets and Slack\n\n### Customization\nAdd SMS reminders with the Inkbox SMS resource, or swap the keyword parser for an AI text classifier.",
+        "width": 560,
+        "height": 720
+      }
+    },
+    {
+      "id": "n002-0000-4000-8000-000000000000",
+      "name": "1. Ask the owners",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        620,
+        0
+      ],
+      "parameters": {
+        "content": "## 1. Ask the owners\n\nEach morning, open decisions are emailed to their owners from the agent mailbox, then marked as asked.",
+        "width": 1100,
+        "height": 370,
+        "color": 7
+      }
+    },
+    {
+      "id": "n007-0000-4000-8000-000000000000",
+      "name": "2. Read the reply",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "content": "## 2. Read the reply\n\nInkbox delivers each reply. The decision ID comes from the subject and the answer from the first word.",
+        "width": 1100,
+        "height": 370,
+        "color": 7
+      }
+    },
+    {
+      "id": "n012-0000-4000-8000-000000000000",
+      "name": "3. Record and confirm",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        0
+      ],
+      "parameters": {
+        "content": "## 3. Record and confirm\n\nValid answers update the sheet, get a confirmation from the same mailbox and a note in Slack.",
+        "width": 840,
+        "height": 570,
+        "color": 7
+      }
+    },
+    {
+      "id": "n003-0000-4000-8000-000000000000",
+      "name": "Every morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "position": [
+        680,
+        180
+      ]
+    },
+    {
+      "id": "n004-0000-4000-8000-000000000000",
+      "name": "Get open decisions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Decisions"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "open"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        940,
+        180
+      ]
+    },
+    {
+      "id": "n005-0000-4000-8000-000000000000",
+      "name": "Email decision request",
+      "type": "n8n-nodes-inkbox.inkbox",
+      "typeVersion": 1,
+      "parameters": {
+        "resource": "mail",
+        "operation": "send",
+        "mailboxEmail": "agent@inkboxmail.com",
+        "to": "={{ $json.owner_email }}",
+        "subject": "=[Decision {{ $json.id }}] {{ $json.question }}",
+        "text": "=Hi,\n\nThis decision is blocking the project:\n\n{{ $json.question }}\n\nReply with APPROVE, REJECT or DEFER as the first word. You can add a note after it.\n\nThanks!",
+        "additionalFields": {},
+        "idempotencyKey": "=decision-{{ $json.id }}-{{ $now.toISODate() }}"
+      },
+      "credentials": {
+        "inkboxApi": {
+          "id": "",
+          "name": "Inkbox account"
+        }
+      },
+      "position": [
+        1200,
+        180
+      ]
+    },
+    {
+      "id": "n006-0000-4000-8000-000000000000",
+      "name": "Mark as asked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Decisions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get open decisions').item.json.id }}",
+            "status": "asked"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "position": [
+        1460,
+        180
+      ]
+    },
+    {
+      "id": "n008-0000-4000-8000-000000000000",
+      "name": "Reply received",
+      "type": "n8n-nodes-inkbox.inkboxTrigger",
+      "typeVersion": 1,
+      "parameters": {
+        "identityId": "",
+        "signingKey": "",
+        "events": [
+          "message.received"
+        ]
+      },
+      "credentials": {
+        "inkboxApi": {
+          "id": "",
+          "name": "Inkbox account"
+        }
+      },
+      "position": [
+        1820,
+        180
+      ]
+    },
+    {
+      "id": "n009-0000-4000-8000-000000000000",
+      "name": "Parse reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "decision_id",
+              "type": "string",
+              "value": "={{ ($json.data.message.subject.match(/\\[Decision ([^\\]]+)\\]/) || [])[1] || '' }}"
+            },
+            {
+              "id": "p2",
+              "name": "answer",
+              "type": "string",
+              "value": "={{ ($json.data.message.body || '').trim().split(/\\s+/)[0].toUpperCase().replace(/[^A-Z]/g, '') }}"
+            },
+            {
+              "id": "p3",
+              "name": "from",
+              "type": "string",
+              "value": "={{ $json.data.message.from_address }}"
+            },
+            {
+              "id": "p4",
+              "name": "mailbox",
+              "type": "string",
+              "value": "={{ $json.data.message.email_address }}"
+            },
+            {
+              "id": "p5",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.data.message.message_id }}"
+            },
+            {
+              "id": "p6",
+              "name": "subject",
+              "type": "string",
+              "value": "={{ $json.data.message.subject }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        2080,
+        180
+      ]
+    },
+    {
+      "id": "n010-0000-4000-8000-000000000000",
+      "name": "Find decision",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Decisions"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id",
+              "lookupValue": "={{ $json.decision_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "position": [
+        2340,
+        180
+      ]
+    },
+    {
+      "id": "n011-0000-4000-8000-000000000000",
+      "name": "Valid answer from owner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.owner_email }}",
+              "rightValue": "={{ $('Parse reply').item.json.from }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "v2",
+              "leftValue": "={{ ['APPROVE','REJECT','DEFER'].includes($('Parse reply').item.json.answer) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        2600,
+        180
+      ]
+    },
+    {
+      "id": "n013-0000-4000-8000-000000000000",
+      "name": "Save answer",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Decisions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "status": "decided",
+            "answer": "={{ $('Parse reply').item.json.answer }}",
+            "decided_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "position": [
+        2960,
+        180
+      ]
+    },
+    {
+      "id": "n014-0000-4000-8000-000000000000",
+      "name": "Confirm by email",
+      "type": "n8n-nodes-inkbox.inkbox",
+      "typeVersion": 1,
+      "parameters": {
+        "resource": "mail",
+        "operation": "send",
+        "mailboxEmail": "={{ $('Parse reply').item.json.mailbox }}",
+        "to": "={{ $('Parse reply').item.json.from }}",
+        "subject": "=Re: {{ $('Parse reply').item.json.subject }}",
+        "text": "=Got it, decision {{ $('Parse reply').item.json.decision_id }} is recorded as {{ $('Parse reply').item.json.answer }}. Thanks!",
+        "additionalFields": {
+          "inReplyTo": "={{ $('Parse reply').item.json.message_id }}"
+        },
+        "idempotencyKey": "=confirm-{{ $('Parse reply').item.json.message_id }}"
+      },
+      "credentials": {
+        "inkboxApi": {
+          "id": "",
+          "name": "Inkbox account"
+        }
+      },
+      "position": [
+        3220,
+        180
+      ]
+    },
+    {
+      "id": "n015-0000-4000-8000-000000000000",
+      "name": "Tell the team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#project-decisions"
+        },
+        "text": "=:white_check_mark: Decision {{ $('Parse reply').item.json.decision_id }} was answered *{{ $('Parse reply').item.json.answer }}* by {{ $('Parse reply').item.json.from }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "",
+          "name": "Slack account"
+        }
+      },
+      "position": [
+        3480,
+        180
+      ]
+    },
+    {
+      "id": "n016-0000-4000-8000-000000000000",
+      "name": "Explain how to reply",
+      "type": "n8n-nodes-inkbox.inkbox",
+      "typeVersion": 1,
+      "parameters": {
+        "resource": "mail",
+        "operation": "send",
+        "mailboxEmail": "={{ $('Parse reply').item.json.mailbox }}",
+        "to": "={{ $('Parse reply').item.json.from }}",
+        "subject": "=Re: {{ $('Parse reply').item.json.subject }}",
+        "text": "=Sorry, I could not match that reply. Please answer from the address the request was sent to, and start your reply with APPROVE, REJECT or DEFER.",
+        "additionalFields": {
+          "inReplyTo": "={{ $('Parse reply').item.json.message_id }}"
+        },
+        "idempotencyKey": "=help-{{ $('Parse reply').item.json.message_id }}"
+      },
+      "credentials": {
+        "inkboxApi": {
+          "id": "",
+          "name": "Inkbox account"
+        }
+      },
+      "position": [
+        2960,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Every morning": {
+      "main": [
+        [
+          {
+            "node": "Get open decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get open decisions": {
+      "main": [
+        [
+          {
+            "node": "Email decision request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email decision request": {
+      "main": [
+        [
+          {
+            "node": "Mark as asked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply received": {
+      "main": [
+        [
+          {
+            "node": "Parse reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse reply": {
+      "main": [
+        [
+          {
+            "node": "Find decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find decision": {
+      "main": [
+        [
+          {
+            "node": "Valid answer from owner?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid answer from owner?": {
+      "main": [
+        [
+          {
+            "node": "Save answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Explain how to reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save answer": {
+      "main": [
+        [
+          {
+            "node": "Confirm by email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm by email": {
+      "main": [
+        [
+          {
+            "node": "Tell the team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
