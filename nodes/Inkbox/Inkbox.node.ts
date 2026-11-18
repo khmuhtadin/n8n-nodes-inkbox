@@ -22,7 +22,7 @@ const props: INodeProperties[] = [
 ];
 const split = (s: string): string[] => s.split(',').map((x) => x.trim()).filter(Boolean);
 export class Inkbox implements INodeType {
- description: INodeTypeDescription = { displayName: 'Inkbox', name: 'inkbox', icon: { light: 'file:../../icons/inkbox.svg', dark: 'file:../../icons/inkbox.svg' }, group: ['transform'], version: 1, subtitle: '={{$parameter.operation}}', description: 'Read and send email and SMS with Inkbox', defaults: { name: 'Inkbox' }, inputs: [NodeConnectionTypes.Main], outputs: [NodeConnectionTypes.Main], usableAsTool: true, credentials: [{ name: 'inkboxApi', required: true }], properties: props };
+ description: INodeTypeDescription = { displayName: 'Inkbox', name: 'inkbox', icon: { light:'file:../../icons/inkbox-light.svg', dark: 'file:../../icons/inkbox.svg' }, group: ['transform'], version: 1, subtitle: '={{$parameter.operation}}', description: 'Read and send email and SMS with Inkbox', defaults: { name: 'Inkbox' }, inputs: [NodeConnectionTypes.Main], outputs: [NodeConnectionTypes.Main], usableAsTool: true, credentials: [{ name: 'inkboxApi', required: true }], properties: props };
  // Programmatic pagination is needed because mail uses cursors while SMS uses offsets.
  async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
   const out: INodeExecutionData[] = [];

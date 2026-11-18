@@ -41,3 +41,7 @@ Node.js 20 or newer. `npm ci --ignore-scripts`, `npm run build`, `npm run lint`,
 ## License
 
 MIT.
+
+### Webhook signing
+
+The trigger verifies the subscription bearer token and Inkbox HMAC-SHA256 signature against the raw request body, rejecting timestamps more than five minutes old. Inkbox returns a signing key only on the first subscription for an identity. If a key already exists, enter that existing key in the Signing Key field; the node never rotates it. A missing key causes activation to remove the newly created subscription and fail safely.
