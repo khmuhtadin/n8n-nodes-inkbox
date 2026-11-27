@@ -21,17 +21,20 @@ export class InkboxTrigger implements INodeType {
    const token=randomBytes(32).toString('hex');
    const result=await this.helpers.httpRequestWithAuthentication.call(this,'inkboxApi',{method:'POST',url:'https://inkbox.ai/api/v1/webhooks/subscriptions',json:true,body:{agent_identity_id:identity,url,event_types:events,auth_token:token}}) as IDataObject;
    if (typeof result.id !== 'string') throw new NodeOperationError(this.getNode(),'Inkbox did not return a subscription ID');
-   const supplied = this.getNodeParameter('signingKey', '') as string; const signingKey = typeof result.signing_key === 'string' && result.signing_key ? result.signing_key : supplied || data.signingKey;
+   // Use the one-time key Inkbox returns for a keyless identity, otherwise the key the user entered.
+   // No fallback to previously stored static data: delete() clears the secret on deactivation.
+   const supplied = this.getNodeParameter('signingKey', '') as string; const signingKey = typeof result.signing_key === 'string' && result.signing_key ? result.signing_key : supplied;
    if (typeof signingKey !== 'string' || !signingKey) {
     await this.helpers.httpRequestWithAuthentication.call(this,'inkboxApi',{method:'DELETE',url:	`https://inkbox.ai/api/v1/webhooks/subscriptions/${encodeURIComponent(result.id)}`,qs:{scope:'identity'},json:true});
-    throw new NodeOperationError(this.getNode(),'Identity already has a signing key. Enter the existing key in Signing Key and activate again.');
+    throw new NodeOperationError(this.getNode(),'Identity already has a signing key. Enter the existing key in Signing Key and activate again.',{description:'If you no longer have the key, rotate it in the Inkbox Console or with POST /identities/{agent_handle}/signing-key, then paste the new key here. Rotating replaces the key for every receiver of this identity.'});
    }
    data.subscriptionId=result.id; data.authToken=token; data.signingKey=signingKey; return true;
   },
   async delete(this:IHookFunctions):Promise<boolean> {
    const data=this.getWorkflowStaticData('node'); if (!data.subscriptionId) return true;
    await this.helpers.httpRequestWithAuthentication.call(this,'inkboxApi',{method:'DELETE',url:`https://inkbox.ai/api/v1/webhooks/subscriptions/${encodeURIComponent(String(data.subscriptionId))}`,qs:{scope:'identity'},json:true});
-   delete data.subscriptionId; delete data.authToken; return true;
+   // Remove every secret this trigger stored, including the signing key, when the workflow is deactivated.
+   delete data.subscriptionId; delete data.authToken; delete data.signingKey; return true;
   },
  } };
  async webhook(this:IWebhookFunctions):Promise<IWebhookResponseData> {

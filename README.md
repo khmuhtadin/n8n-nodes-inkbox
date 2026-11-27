@@ -22,9 +22,21 @@ Mail lists use cursor pagination and SMS lists use offset pagination. Limit and 
 
 ## Trigger
 
-Select the owning **Agent Identity ID** and the inbound email and/or text events. n8n must expose a public HTTPS webhook URL. On activation, the trigger creates its own [subscription](https://inkbox.ai/docs/api/webhooks/subscriptions); on deactivation it deletes only that subscription. It generates a random bearer token, registers it as `auth_token`, and validates incoming authorization headers before emitting data. The token and subscription ID are stored in n8n workflow static data. If Inkbox returns a one-time identity signing key on first creation, it is also retained in that static data. Treat workflow data as sensitive. If you delete a workflow without deactivating it, remove its subscription manually.
+Select the owning **Agent Identity ID** and the inbound email and/or text events. n8n must expose a public HTTPS webhook URL.
 
-This implementation validates the subscription bearer token, not Inkbox HMAC signatures. The node retains but does not use the optional one-time signing key for HMAC verification. Inkbox may retry deliveries; deduplicate events in your workflow when necessary. Webhook registration and delivery have not been tested against a live Inkbox account.
+**Activation.** The trigger creates its own [webhook subscription](https://inkbox.ai/docs/api/webhooks/subscriptions) with a random bearer token registered as `auth_token`. It stores the subscription ID, the bearer token and the identity signing key in n8n workflow static data.
+
+**Signing key.** Inkbox signs every webhook for an identity with that identity's [signing key](https://inkbox.ai/docs/signing-keys) and returns the plaintext key only once:
+
+- If the identity has no key yet, the first subscription returns one and the trigger stores it automatically.
+- If the identity already has a key, enter it in the **Signing Key** field. Without a key, activation deletes the subscription it just created and fails with an error.
+- If you no longer have the key, rotate it in the Inkbox Console or with `POST /identities/{agent_handle}/signing-key`, then paste the new key. Rotating replaces the key for every receiver of that identity. The node itself never rotates keys.
+
+**Verification.** Each delivery must pass two checks before the workflow runs: the `Authorization: Bearer` token must match, and the `X-Inkbox-Signature` HMAC-SHA256 over `request_id.timestamp.raw_body` must match the signing key. Requests with a timestamp more than five minutes old are rejected. Failed checks return `401`.
+
+**Deactivation.** The trigger deletes only its own subscription and removes the subscription ID, bearer token and signing key from workflow static data. An identity key that was stored automatically is therefore not kept after deactivation: before deactivating, note that re-activation will need the key in the **Signing Key** field (or a rotated key). If you delete a workflow without deactivating it, remove its subscription manually.
+
+Inkbox may retry deliveries; deduplicate events in your workflow when necessary.
 
 ## Example
 
@@ -45,7 +57,3 @@ Node.js 20 or newer. `npm ci --ignore-scripts`, `npm run build`, `npm run lint`,
 ## License
 
 MIT.
-
-### Webhook signing
-
-The trigger verifies the subscription bearer token and Inkbox HMAC-SHA256 signature against the raw request body, rejecting timestamps more than five minutes old. Inkbox returns a signing key only on the first subscription for an identity. If a key already exists, enter that existing key in the Signing Key field; the node never rotates it. A missing key causes activation to remove the newly created subscription and fail safely.
