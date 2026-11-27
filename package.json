@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-inkbox",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Independent n8n community node for Inkbox email and SMS",
 	"license": "MIT",
 	"homepage": "https://github.com/khmuhtadin/n8n-nodes-inkbox#readme",

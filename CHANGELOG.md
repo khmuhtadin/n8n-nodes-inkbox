@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Use the brand's original logo for the node and credential icons (light and dark).
+
 ## 0.1.2
 
 - Trigger: deactivation now also removes the signing key from workflow static data, and activation no longer reuses a previously stored key.
